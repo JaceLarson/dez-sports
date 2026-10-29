@@ -47,17 +47,25 @@ object DezScores {
         val runH = lh.take(n).runningFold(0) { acc, v -> acc + v }.drop(1)
         val awayWon = a > h
 
-        // 2. Back and forth: the biggest deficit the winner erased, and how often the lead changed hands, between periods.
+        // 2. Back and forth, from the score at each period break: the deficit the winner erased (40%), the lead
+        //    changing hands or slipping into a tie (30%), and how close it stayed throughout (30%).
         val deficit = if (n == 0 || a == h) 0 else (0 until n - 1).maxOfOrNull { i -> if (awayWon) runH[i] - runA[i] else runA[i] - runH[i] }?.coerceAtLeast(0) ?: 0
-        var changes = 0; var leader = 0
-        for (i in 0 until n) {
+        var changes = 0; var ties = 0; var leader = 0
+        for (i in 0 until n - 1) {
             val now = (runA[i] - runH[i]).let { if (it > 0) 1 else if (it < 0) -1 else 0 }
+            if (now == 0) ties++
             if (now != 0 && leader != 0 && now != leader) changes++
             if (now != 0) leader = now
         }
-        val swing = (deficit / s.comeback).coerceIn(0f, 1f) * .6f + minOf(changes, 3) / 3f * .4f
-        val swingDetail = listOfNotNull(if (deficit > 0) "Winner trailed by $deficit" else null, if (changes > 0) "$changes lead change${if (changes > 1) "s" else ""}" else null)
-            .joinToString(" · ").ifEmpty { "One team led throughout" }
+        val gaps = (0 until n - 1).map { abs(runA[it] - runH[it]) }
+        val tight = if (gaps.isEmpty()) 0f else (1f - gaps.average().toFloat() / (s.close * .5f)).coerceIn(0f, 1f)
+        val swing = (deficit / s.comeback).coerceIn(0f, 1f) * .4f + minOf(changes + ties, 3) / 3f * .3f + tight * .3f
+        val swingDetail = listOfNotNull(
+            if (deficit > 0) "Winner trailed by $deficit" else null,
+            if (changes > 0) "$changes lead change${if (changes > 1) "s" else ""}" else null,
+            if (ties > 0) "tied after $ties period${if (ties > 1) "s" else ""}" else null,
+            gaps.maxOrNull()?.let { if (it <= s.close * .25f) "never more than $it apart" else null },
+        ).joinToString(" · ").replaceFirstChar { it.uppercase() }.ifEmpty { "One team in control" }
         parts += DezPart("Back and forth", swingDetail, (swing * 14).roundToInt(), 14)
 
         // 3. How good the teams were (records after this game; AP rank in college).
