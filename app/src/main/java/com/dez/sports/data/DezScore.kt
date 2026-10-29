@@ -47,28 +47,34 @@ object DezScores {
         val runH = lh.take(n).runningFold(0) { acc, v -> acc + v }.drop(1)
         val awayWon = a > h
 
-        // 2. Comeback: the biggest deficit the winner erased at the end of a period.
+        // 2. Back and forth: the biggest deficit the winner erased, and how often the lead changed hands, between periods.
         val deficit = if (n == 0 || a == h) 0 else (0 until n - 1).maxOfOrNull { i -> if (awayWon) runH[i] - runA[i] else runA[i] - runH[i] }?.coerceAtLeast(0) ?: 0
-        parts += DezPart("Comeback", if (deficit > 0) "Winner trailed by $deficit" else "Never trailed after a period", ((deficit / s.comeback).coerceIn(0f, 1f) * 16).roundToInt(), 16)
-
-        // 3. Back-and-forth: how often the lead changed hands between periods.
         var changes = 0; var leader = 0
         for (i in 0 until n) {
             val now = (runA[i] - runH[i]).let { if (it > 0) 1 else if (it < 0) -1 else 0 }
             if (now != 0 && leader != 0 && now != leader) changes++
             if (now != 0) leader = now
         }
-        parts += DezPart("Lead changes", if (changes == 0) "One team led throughout" else "$changes after periods", (minOf(changes, 3) * 4), 12)
+        val swing = (deficit / s.comeback).coerceIn(0f, 1f) * .6f + minOf(changes, 3) / 3f * .4f
+        val swingDetail = listOfNotNull(if (deficit > 0) "Winner trailed by $deficit" else null, if (changes > 0) "$changes lead change${if (changes > 1) "s" else ""}" else null)
+            .joinToString(" · ").ifEmpty { "One team led throughout" }
+        parts += DezPart("Back and forth", swingDetail, (swing * 14).roundToInt(), 14)
+
+        // 3. How good the teams were (records after this game; AP rank in college).
+        val q = WatchScores.quality(g)
+        parts += DezPart("Teams", WatchScores.teamsDetail(g), (((q - .35) / .35).coerceIn(0.0, 1.0) * 20).roundToInt(), 20)
 
         // 4. Drama in the last period: close going into it.
         val lastReg = minOf(s.regulation, n) - 1
         val beforeLast = if (lastReg >= 1) abs(runA[lastReg - 1] - runH[lastReg - 1]) else margin
-        val late = (1f - beforeLast / (s.close * .6f)).coerceIn(0f, 1f)
-        parts += DezPart("Late drama", "Within $beforeLast entering the final period", (late * 10).roundToInt(), 10)
-
-        // 5. Bonus time.
+        // Tied after regulation is as dramatic as it gets.
         val extra = (n - s.regulation).coerceAtLeast(0)
-        parts += DezPart("Overtime", when { extra == 0 -> "Regulation"; extra == 1 -> if (g.league.kind == SportKind.BASEBALL) "Extra innings" else "Went to overtime"; else -> "$extra extra periods" }, minOf(extra * 8, 12), 12)
+        val late = if (extra > 0) 1f else (1f - beforeLast / (s.close * .6f)).coerceIn(0f, 1f)
+        val lateDetail = when {
+            extra > 0 -> if (g.league.kind == SportKind.BASEBALL) "Tied after nine; went to extras" else "Tied at the end of regulation"
+            else -> "Within $beforeLast entering the final period"
+        }
+        parts += DezPart("Late drama", lateDetail, (late * 16).roundToInt(), 16)
 
         // 6. Fireworks and stakes.
         val total = a + h

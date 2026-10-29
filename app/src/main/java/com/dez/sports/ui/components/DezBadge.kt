@@ -49,6 +49,7 @@ fun rememberDezScore(g: Game): DezScore? {
 /** Small "DEZ 87" pill for finished games. */
 @Composable
 fun DezBadge(g: Game, modifier: Modifier = Modifier, compact: Boolean = false) {
+    if (!com.dez.sports.data.Favorites.showDez.collectAsState().value) return
     val d = rememberDezScore(g) ?: return
     val c = dezColor(d.score)
     Row(modifier.clip(RoundedCornerShape(50)).background(c.copy(alpha = .16f)).padding(horizontal = if (compact) 5.dp else 7.dp, vertical = 1.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -61,6 +62,7 @@ fun DezBadge(g: Game, modifier: Modifier = Modifier, compact: Boolean = false) {
 /** Game page: the score, its verdict, and what earned it. */
 @Composable
 fun DezScoreCard(g: Game, modifier: Modifier = Modifier) {
+    if (!com.dez.sports.data.Favorites.showDez.collectAsState().value) return
     val d: DezScore = rememberDezScore(g) ?: return
     BreakdownCard("DEZ SCORE", d.verdict, "How fun this one was to watch", d.score, d.parts, modifier)
 }
@@ -81,9 +83,20 @@ fun rememberWatchScore(g: Game, fromScoreboard: Boolean = false): WatchScore? {
 
 /** "WATCH 78" pill on upcoming games: outlined, so it doesn't read as a finished game's Dez Score. */
 @Composable
-fun WatchBadge(g: Game, modifier: Modifier = Modifier, compact: Boolean = false) {
+fun WatchBadge(g: Game, modifier: Modifier = Modifier, compact: Boolean = false, subtle: Boolean = false) {
+    if (!com.dez.sports.data.Favorites.showWatch.collectAsState().value) return
     val w = rememberWatchScore(g) ?: return
     val c = dezColor(w.score)
+    if (subtle) {
+        // Same outlined pill, a size down, for the score cards.
+        Row(modifier.clip(RoundedCornerShape(50)).border(.75.dp, c.copy(alpha = .55f), RoundedCornerShape(50)).padding(horizontal = 4.dp),
+            verticalAlignment = Alignment.CenterVertically) {
+            Text("WATCH", fontSize = 7.sp, fontWeight = FontWeight.Black, color = c.copy(alpha = .7f), letterSpacing = .4.sp)
+            Spacer(Modifier.width(2.dp))
+            Text("${w.score}", fontSize = 9.sp, fontWeight = FontWeight.Black, color = c, style = TabularNums)
+        }
+        return
+    }
     Row(modifier.clip(RoundedCornerShape(50)).border(1.dp, c.copy(alpha = .7f), RoundedCornerShape(50)).padding(horizontal = if (compact) 5.dp else 7.dp, vertical = 1.dp),
         verticalAlignment = Alignment.CenterVertically) {
         Text("WATCH", fontSize = if (compact) 8.sp else 9.sp, fontWeight = FontWeight.Black, color = c.copy(alpha = .8f), letterSpacing = .5.sp)
@@ -94,6 +107,7 @@ fun WatchBadge(g: Game, modifier: Modifier = Modifier, compact: Boolean = false)
 
 @Composable
 fun WatchScoreCard(g: Game, modifier: Modifier = Modifier) {
+    if (!com.dez.sports.data.Favorites.showWatch.collectAsState().value) return
     val w = rememberWatchScore(g, fromScoreboard = true) ?: return
     BreakdownCard("DEZ WATCH SCORE", w.verdict, "How worth watching this one looks", w.score, w.parts, modifier)
 }

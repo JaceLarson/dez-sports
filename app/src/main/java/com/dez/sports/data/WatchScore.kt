@@ -42,15 +42,20 @@ object WatchScores {
         return s.rank?.let { maxOf(wp, 1.0 - it / 50.0) } ?: wp
     }
 
+    /** How good the two teams are together (both good matters more than one great team), about .35 (poor) to .70 (great). */
+    fun quality(g: Game): Double {
+        val a = strength(g.away); val h = strength(g.home)
+        return (a + h) / 2 * .5 + minOf(a, h) * .5
+    }
+
+    fun teamsDetail(g: Game) = listOf(g.away, g.home).joinToString(" vs ") { s -> (s.rank?.let { "#$it " } ?: "") + s.team.abbreviation + (s.record?.let { " ($it)" } ?: "") }
+
     suspend fun of(g: Game): WatchScore? {
         if (g.state != GameState.PRE || g.league == League.PGA || g.isTbd) return null
         val parts = mutableListOf<DezPart>()
 
         // 1. How good the teams are (both good matters more than one great team).
-        val a = strength(g.away); val h = strength(g.home)
-        val q = ((a + h) / 2 * .5 + minOf(a, h) * .5)
-        val qDetail = listOf(g.away, g.home).joinToString(" vs ") { s -> (s.rank?.let { "#$it " } ?: "") + s.team.abbreviation + (s.record?.let { " ($it)" } ?: "") }
-        parts += DezPart("Teams", qDetail, (((q - .35) / .35).coerceIn(0.0, 1.0) * 33).roundToInt(), 33)
+        parts += DezPart("Teams", teamsDetail(g), (((quality(g) - .35) / .35).coerceIn(0.0, 1.0) * 33).roundToInt(), 33)
 
         // 2. How close the line is.
         val line = Upsets.cached(g.id) ?: runCatching { Upsets.line(g) }.getOrNull()

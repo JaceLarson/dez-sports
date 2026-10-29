@@ -22,6 +22,7 @@ object Favorites {
 
     fun init(context: Context) {
         ctx = context.applicationContext
+        prefs()?.let { _showDez.value = it.getBoolean("showDez", true); _showWatch.value = it.getBoolean("showWatch", true) }
         val saved = prefs()?.getString("favorites", null) ?: return
         _teams.value = saved.split(",").filter { it.contains(":") }.mapNotNull {
             val (l, id) = it.split(":")
@@ -60,4 +61,12 @@ object Favorites {
     val compactScores: StateFlow<Boolean?> = _compact
     fun compact(): Boolean = _compact.value ?: (prefs()?.getBoolean("compactScores", false) ?: false).also { _compact.value = it }
     fun setCompact(v: Boolean) { _compact.value = v; prefs()?.edit()?.putBoolean("compactScores", v)?.apply() }
+
+    /** Dez Scores on finished games and Watch scores on upcoming ones; both on unless turned off in Settings. */
+    private val _showDez = MutableStateFlow(true)
+    val showDez: StateFlow<Boolean> = _showDez
+    private val _showWatch = MutableStateFlow(true)
+    val showWatch: StateFlow<Boolean> = _showWatch
+    fun setShowDez(v: Boolean) { _showDez.value = v; prefs()?.edit()?.putBoolean("showDez", v)?.apply() }
+    fun setShowWatch(v: Boolean) { _showWatch.value = v; prefs()?.edit()?.putBoolean("showWatch", v)?.apply() }
 }

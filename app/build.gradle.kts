@@ -12,8 +12,8 @@ android {
         applicationId = "com.dez.sports"
         minSdk = 29
         targetSdk = 36
-        versionCode = 18
-        versionName = "0.12.2"
+        versionCode = 20
+        versionName = "0.13"
     }
 
     buildTypes {

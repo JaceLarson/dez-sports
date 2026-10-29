@@ -76,7 +76,7 @@ fun ScoreCard(game: Game, onClick: () -> Unit, modifier: Modifier = Modifier, hi
     val live = game.state == GameState.LIVE
     val upset = rememberUpset(game)
 
-    Column(
+    Box(
         modifier
             .graphicsLayer { scaleX = scale; scaleY = scale }
             .clip(RoundedCornerShape(20.dp))
@@ -85,9 +85,9 @@ fun ScoreCard(game: Game, onClick: () -> Unit, modifier: Modifier = Modifier, hi
             .background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = .35f))))
             .then(if (highlight || flash > 0f) Modifier.border(1.5.dp, Color.White.copy(alpha = if (flash > 0f) flash * .9f else .12f), RoundedCornerShape(20.dp)) else Modifier)
             .clickable(interaction, null, onClick = onClick)
-            .animateContentSize(spring(stiffness = 400f))
-            .padding(horizontal = 12.dp, vertical = 9.dp),
+            .animateContentSize(spring(stiffness = 400f)),
     ) {
+    Column(Modifier.padding(horizontal = 12.dp, vertical = 9.dp)) {
         upset?.let { UpsetBanner(it, Modifier.padding(bottom = 6.dp)) }
         val note = game.note ?: game.seriesSummary
         if (note != null) {
@@ -112,6 +112,7 @@ fun ScoreCard(game: Game, onClick: () -> Unit, modifier: Modifier = Modifier, hi
             game.state == GameState.PRE -> PreGameFooter(game)
         }
         if (game.leaders.isNotEmpty()) LeadersCarousel(game, onPlayer ?: LocalOpenPlayer.current)
+    }
     }
 }
 
@@ -161,7 +162,7 @@ private fun Center(game: Game, modifier: Modifier) {
             GameState.PRE -> {
                 Text(if (game.isTbd) "TBD" else localTime(game.dateIso), style = MaterialTheme.typography.titleSmall.merge(TabularNums), color = Dez.Text, maxLines = 1)
                 TvLine(game, .65f)
-                WatchBadge(game, Modifier.padding(top = 3.dp))
+                WatchBadge(game, Modifier.padding(top = 2.dp), subtle = true)
             }
             GameState.POST -> {
                 Text(game.statusShort.replace("Final/", "F/").let { if (it.startsWith("Final")) it.replace("Final", "FINAL") else it },

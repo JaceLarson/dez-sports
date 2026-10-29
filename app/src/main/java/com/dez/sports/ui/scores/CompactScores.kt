@@ -65,7 +65,6 @@ fun CompactScore(g: Game, fav: Boolean, onClick: () -> Unit, modifier: Modifier 
                 }
                 GameState.PRE -> {
                     Text(if (g.isTbd) "TBD" else localTime(g.dateIso), style = MaterialTheme.typography.labelLarge.merge(TabularNums), color = Dez.Text, maxLines = 1)
-                    WatchBadge(g, Modifier.padding(vertical = 2.dp), compact = true)
                 }
                 GameState.POST -> Column(horizontalAlignment = Alignment.End) {
                     Text(g.statusShort.replace("Final/", "F/").let { if (it.startsWith("Final")) "Final" + it.removePrefix("Final") else it },

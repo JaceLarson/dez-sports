@@ -39,6 +39,8 @@ import kotlinx.coroutines.withContext
 fun SettingsScreen(onBack: () -> Unit, onTeam: (League, String) -> Unit) {
     val favs by Favorites.teams.collectAsState()
     val compact by Favorites.compactScores.collectAsState()
+    val showDez by Favorites.showDez.collectAsState()
+    val showWatch by Favorites.showWatch.collectAsState()
     // Names and logos for the saved ids, from each league's team directory.
     var names by remember { mutableStateOf<Map<FavoriteTeam, Team>>(emptyMap()) }
     LaunchedEffect(favs) {
@@ -102,18 +104,9 @@ fun SettingsScreen(onBack: () -> Unit, onTeam: (League, String) -> Unit) {
         }
 
         item { Section("SCORES", null) }
-        item {
-            Row(Modifier.padding(horizontal = 12.dp).fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Dez.Card)
-                .clickable { Favorites.setCompact(!(compact ?: Favorites.compact())) }.padding(horizontal = 14.dp, vertical = 10.dp),
-                verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text("Compact score list", style = MaterialTheme.typography.titleSmall, color = Dez.Text)
-                    Text("One line per game instead of full score cards", style = MaterialTheme.typography.labelSmall, color = Dez.Sub)
-                }
-                Switch(compact ?: Favorites.compact(), { Favorites.setCompact(it) },
-                    colors = SwitchDefaults.colors(checkedTrackColor = Dez.Accent, uncheckedTrackColor = Dez.Card2, uncheckedBorderColor = Dez.Hairline))
-            }
-        }
+        item { ToggleRow("Compact score list", "One line per game instead of full score cards", compact ?: Favorites.compact(), Favorites::setCompact) }
+        item { ToggleRow("Dez Scores", "0–100 rating of how fun a finished game was", showDez, Favorites::setShowDez) }
+        item { ToggleRow("Watch scores", "0–100 rating of how worth watching an upcoming game looks", showWatch, Favorites::setShowWatch) }
         item {
             Text("Dez Sports ${version.orEmpty()} · scores and stats from ESPN", style = MaterialTheme.typography.labelSmall, color = Dez.Faint,
                 modifier = Modifier.fillMaxWidth().padding(top = 24.dp), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
@@ -133,6 +126,18 @@ fun SettingsScreen(onBack: () -> Unit, onTeam: (League, String) -> Unit) {
         confirmButton = { TextButton({ Favorites.clear(); confirmClear = false }) { Text("Remove all", color = Dez.Live) } },
         dismissButton = { TextButton({ confirmClear = false }) { Text("Cancel", color = Dez.Sub) } },
     )
+}
+
+@Composable
+private fun ToggleRow(title: String, sub: String, on: Boolean, onChange: (Boolean) -> Unit) {
+    Row(Modifier.padding(horizontal = 12.dp).fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Dez.Card)
+        .clickable { onChange(!on) }.padding(horizontal = 14.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.weight(1f)) {
+            Text(title, style = MaterialTheme.typography.titleSmall, color = Dez.Text)
+            Text(sub, style = MaterialTheme.typography.labelSmall, color = Dez.Sub)
+        }
+        Switch(on, onChange, colors = SwitchDefaults.colors(checkedTrackColor = Dez.Accent, uncheckedTrackColor = Dez.Card2, uncheckedBorderColor = Dez.Hairline))
+    }
 }
 
 @Composable
