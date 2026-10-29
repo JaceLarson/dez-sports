@@ -1,0 +1,95 @@
+package com.dez.sports.data
+
+import com.dez.sports.model.Game
+import com.dez.sports.model.GameState
+import com.dez.sports.model.League
+import com.dez.sports.model.SportKind
+import kotlin.math.abs
+import kotlin.math.roundToInt
+
+/** One ingredient of a game's excitement rating and how many of the 100 points it earned. */
+data class DezPart(val label: String, val detail: String, val points: Int, val max: Int)
+
+data class DezScore(val score: Int, val verdict: String, val parts: List<DezPart>)
+
+/**
+ * "Dez Score": a 0–100 rating of how fun a finished game was to watch, built only from the final score,
+ * the period-by-period line and the stakes – so the number on a score card always matches the game page.
+ */
+object DezScores {
+    private class Scale(val close: Float, val comeback: Float, val highScoring: Int, val regulation: Int)
+
+    private fun scale(l: League) = when (l.kind) {
+        SportKind.BASKETBALL -> Scale(24f, 15f, if (l == League.CBB) 160 else 240, if (l == League.CBB) 2 else 4)
+        SportKind.FOOTBALL -> Scale(24f, 14f, 60, 4)
+        SportKind.HOCKEY -> Scale(3f, 2f, 8, 3)
+        SportKind.BASEBALL -> Scale(5f, 3f, 14, 9)
+        SportKind.GOLF -> Scale(1f, 1f, 1, 1)
+    }
+
+    fun of(g: Game): DezScore? {
+        if (g.state != GameState.POST || g.league.kind == SportKind.GOLF) return null
+        val a = g.away.score?.toIntOrNull() ?: return null
+        val h = g.home.score?.toIntOrNull() ?: return null
+        val s = scale(g.league)
+        val margin = abs(a - h)
+        val parts = mutableListOf<DezPart>()
+
+        // 1. How close it finished.
+        val closeness = (1f - margin / s.close).coerceIn(0f, 1f)
+        parts += DezPart("Finish", if (margin == 0) "Tied" else "Decided by $margin", (closeness * 32).roundToInt(), 32)
+
+        // Period-by-period running score, from each team's linescore.
+        val la = g.away.linescores.map { it.toIntOrNull() ?: 0 }
+        val lh = g.home.linescores.map { it.toIntOrNull() ?: 0 }
+        val n = minOf(la.size, lh.size)
+        val runA = la.take(n).runningFold(0) { acc, v -> acc + v }.drop(1)
+        val runH = lh.take(n).runningFold(0) { acc, v -> acc + v }.drop(1)
+        val awayWon = a > h
+
+        // 2. Comeback: the biggest deficit the winner erased at the end of a period.
+        val deficit = if (n == 0 || a == h) 0 else (0 until n - 1).maxOfOrNull { i -> if (awayWon) runH[i] - runA[i] else runA[i] - runH[i] }?.coerceAtLeast(0) ?: 0
+        parts += DezPart("Comeback", if (deficit > 0) "Winner trailed by $deficit" else "Never trailed after a period", ((deficit / s.comeback).coerceIn(0f, 1f) * 18).roundToInt(), 18)
+
+        // 3. Back-and-forth: how often the lead changed hands between periods.
+        var changes = 0; var leader = 0
+        for (i in 0 until n) {
+            val now = (runA[i] - runH[i]).let { if (it > 0) 1 else if (it < 0) -1 else 0 }
+            if (now != 0 && leader != 0 && now != leader) changes++
+            if (now != 0) leader = now
+        }
+        parts += DezPart("Lead changes", if (changes == 0) "One team led throughout" else "$changes after periods", (minOf(changes, 3) * 4), 12)
+
+        // 4. Drama in the last period: close going into it.
+        val lastReg = minOf(s.regulation, n) - 1
+        val beforeLast = if (lastReg >= 1) abs(runA[lastReg - 1] - runH[lastReg - 1]) else margin
+        val late = (1f - beforeLast / (s.close * .6f)).coerceIn(0f, 1f)
+        parts += DezPart("Late drama", "Within $beforeLast entering the final period", (late * 12).roundToInt(), 12)
+
+        // 5. Bonus time.
+        val extra = (n - s.regulation).coerceAtLeast(0)
+        parts += DezPart("Overtime", when { extra == 0 -> "Regulation"; extra == 1 -> if (g.league.kind == SportKind.BASEBALL) "Extra innings" else "Went to overtime"; else -> "$extra extra periods" }, minOf(extra * 8, 14), 14)
+
+        // 6. Fireworks and stakes.
+        val total = a + h
+        parts += DezPart("Offense", "$total combined", (((total - s.highScoring * .6f) / (s.highScoring * .4f)).coerceIn(0f, 1f) * 6).roundToInt(), 6)
+        val ranked = listOfNotNull(g.away.rank, g.home.rank)
+        val loserRank = if (awayWon) g.home.rank else g.away.rank
+        val winnerRank = if (awayWon) g.away.rank else g.home.rank
+        val upset = loserRank != null && (winnerRank == null || winnerRank > loserRank + 5)
+        val stakes = (if (g.seriesSummary != null || g.note?.let { n2 -> listOf("final", "playoff", "bowl", "championship", "tournament", "game ").any { n2.lowercase().contains(it) } } == true) 4 else 0) +
+            (if (ranked.size == 2) 2 else 0) + (if (upset) 3 else 0)
+        parts += DezPart("Stakes", listOfNotNull(g.seriesSummary ?: g.note, if (upset) "Upset" else null, if (ranked.size == 2) "Ranked vs ranked" else null).joinToString(" · ").ifEmpty { "Regular game" }, minOf(stakes, 6), 6)
+
+        val score = parts.sumOf { it.points }.coerceIn(0, 100)
+        return DezScore(score, verdict(score), parts)
+    }
+
+    fun verdict(score: Int) = when {
+        score >= 85 -> "Instant classic"
+        score >= 70 -> "Thriller"
+        score >= 55 -> "Good game"
+        score >= 35 -> "Watchable"
+        else -> "Snoozer"
+    }
+}

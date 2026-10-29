@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="18 18 72 72" width="432" height="432">
+<defs>
+ <radialGradient id="bg" cx="30%" cy="20%" r="95%"><stop offset="0" stop-color="#26324A"/><stop offset=".55" stop-color="#0D111B"/><stop offset="1" stop-color="#030406"/></radialGradient>
+ <linearGradient id="d" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#C9CEDA"/></linearGradient>
+ <linearGradient id="s" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#FF3B30" stop-opacity="0"/><stop offset="1" stop-color="#FF3B30"/></linearGradient>
+ <clipPath id="circ"><circle cx="54" cy="54" r="36"/></clipPath>
+</defs>
+<g clip-path="url(#circ)">
+ <rect width="108" height="108" fill="url(#bg)"/>
+ <path d="M70,0 L108,0 L108,30 L40,108 L10,108 Z" fill="#FFFFFF" opacity=".035"/>
+ <path d="M33.04,42.52 L40.56,42.52 L39.86,45.72 L32.34,45.72 C30.26,45.72 30.97,42.52 33.04,42.52 Z" fill="url(#s)"/><path d="M27.49,50.5 L38.81,50.5 L38.11,53.7 L26.78,53.7 C24.71,53.7 25.41,50.5 27.49,50.5 Z" fill="url(#s)"/><path d="M31.81,58.48 L37.05,58.48 L36.35,61.68 L31.11,61.68 C29.03,61.68 29.73,58.48 31.81,58.48 Z" fill="url(#s)"/>
+ <path d="M45.26,35.0 L60.46,35.0 C71.86,35.0 76.86,43.36 74.52,54.0 C72.18,64.64 63.5,73.0 52.1,73.0 L36.9,73.0 Z M51.78,43.36 L57.86,43.36 C63.94,43.36 66.74,47.92 65.4,54.0 C64.06,60.08 59.26,64.64 53.18,64.64 L47.1,64.64 Z" fill="url(#d)" fill-rule="evenodd"/>
+ <circle cx="75.66" cy="35.0" r="6.2" fill="#FF3B30" opacity=".25"/>
+ <circle cx="75.66" cy="35.0" r="3.6" fill="#FF3B30"/>
+</g>
+</svg>

@@ -1,0 +1,4 @@
+# Ask ART to compile all of the app's own code ahead of time (Compose ships its own profile),
+# so new screens don't stutter while the JIT warms up.
+HSPLcom/dez/sports/**->**(**)**
+Lcom/dez/sports/**;
