@@ -50,7 +50,7 @@ object WatchScores {
         val a = strength(g.away); val h = strength(g.home)
         val q = ((a + h) / 2 * .5 + minOf(a, h) * .5)
         val qDetail = listOf(g.away, g.home).joinToString(" vs ") { s -> (s.rank?.let { "#$it " } ?: "") + s.team.abbreviation + (s.record?.let { " ($it)" } ?: "") }
-        parts += DezPart("Teams", qDetail, (((q - .35) / .35).coerceIn(0.0, 1.0) * 28).roundToInt(), 28)
+        parts += DezPart("Teams", qDetail, (((q - .35) / .35).coerceIn(0.0, 1.0) * 33).roundToInt(), 33)
 
         // 2. How close the line is.
         val line = Upsets.cached(g.id) ?: runCatching { Upsets.line(g) }.getOrNull()
@@ -66,21 +66,21 @@ object WatchScores {
             }
             else -> .5 to "No line yet"
         }
-        parts += DezPart("Close line", lineText, (close * 22).roundToInt(), 22)
+        parts += DezPart("Close line", lineText, (close * 27).roundToInt(), 27)
 
         // 3. Your teams: one of them playing, or a team in their race.
         val favs = Favorites.teams.value.filter { it.league == g.league }
         val st = if (favs.isNotEmpty() || cutoff(g.league) > 0) standings(g.league) else null
         val mine = favs.firstOrNull { g.involves(it.teamId) }
         val yours = when {
-            mine != null -> 20 to "${(if (g.home.team.id == mine.teamId) g.home else g.away).team.displayName} play"
+            mine != null -> 10 to "${(if (g.home.team.id == mine.teamId) g.home else g.away).team.displayName} play"
             else -> favs.firstNotNullOfOrNull { f ->
                 val grp = st?.groups?.firstOrNull { gr -> gr.rows.any { it.team.id == f.teamId } } ?: return@firstNotNullOfOrNull null
                 val name = grp.rows.first { it.team.id == f.teamId }.team.name.ifEmpty { "your team" }
-                if (grp.rows.any { it.team.id == g.home.team.id || it.team.id == g.away.team.id }) 12 to "In the ${name}' ${shortGroup(grp.name)}" else null
+                if (grp.rows.any { it.team.id == g.home.team.id || it.team.id == g.away.team.id }) 6 to "In the ${name}' ${shortGroup(grp.name)}" else null
             } ?: (0 to "None of your teams' races")
         }
-        parts += DezPart("Your teams", yours.second, yours.first, 20)
+        parts += DezPart("Your teams", yours.second, yours.first, 10)
 
         // 4. Playoff picture: postseason, or two teams near the line, mattering more as the season goes on.
         val post = g.seriesSummary != null || g.note?.lowercase()?.let { n -> listOf("playoff", "bowl", "championship", "tournament", "final", "round", "wild card", "play-in").any { it in n } } == true
