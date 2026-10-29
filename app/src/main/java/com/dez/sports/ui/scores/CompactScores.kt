@@ -15,6 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -45,11 +46,13 @@ fun ViewToggle(compact: Boolean, onChange: (Boolean) -> Unit, summary: String, m
 @Composable
 fun CompactScore(g: Game, fav: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val (awayC, homeC) = g.colors()
+    val upset = rememberUpset(g)
     Row(
-        modifier.clip(RoundedCornerShape(16.dp)).background(Dez.Card).clickable(onClick = onClick).height(IntrinsicSize.Min),
+        modifier.clip(RoundedCornerShape(16.dp)).upsetGlow(upset, 16.dp).background(Dez.Card).clickable(onClick = onClick).height(IntrinsicSize.Min),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        if (fav) Box(Modifier.width(3.dp).fillMaxHeight().background(Dez.Gold))
+        if (upset != null) Box(Modifier.width(3.dp).fillMaxHeight().background(UpsetRed))
+        else if (fav) Box(Modifier.width(3.dp).fillMaxHeight().background(Dez.Gold))
         Column(Modifier.weight(1f).padding(start = 12.dp, top = 8.dp, bottom = 8.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
             CompactTeam(g, g.away, g.home, awayC)
             CompactTeam(g, g.home, g.away, homeC)
@@ -57,6 +60,7 @@ fun CompactScore(g: Game, fav: Boolean, onClick: () -> Unit, modifier: Modifier 
         Column(Modifier.width(78.dp).padding(end = 10.dp), horizontalAlignment = Alignment.End) {
             when (g.state) {
                 GameState.LIVE -> {
+                    if (upset != null) Text("UPSET ALERT", fontSize = 9.sp, fontWeight = FontWeight.Black, color = UpsetRed, maxLines = 1)
                     Row(verticalAlignment = Alignment.CenterVertically) { LiveDot(3.dp); Text(liveLabel(g), style = MaterialTheme.typography.labelMedium.merge(TabularNums), color = Dez.Live, maxLines = 1, overflow = TextOverflow.Ellipsis) }
                 }
                 GameState.PRE -> Text(if (g.isTbd) "TBD" else localTime(g.dateIso), style = MaterialTheme.typography.labelLarge.merge(TabularNums), color = Dez.Text, maxLines = 1)
@@ -64,6 +68,7 @@ fun CompactScore(g: Game, fav: Boolean, onClick: () -> Unit, modifier: Modifier 
                     Text(g.statusShort.replace("Final/", "F/").let { if (it.startsWith("Final")) "Final" + it.removePrefix("Final") else it },
                     style = MaterialTheme.typography.labelMedium, color = Dez.Sub, maxLines = 1, textAlign = TextAlign.End)
                     DezBadge(g, Modifier.padding(top = 3.dp), compact = true)
+                    if (upset != null) Text("UPSET", fontSize = 9.sp, fontWeight = FontWeight.Black, color = UpsetRed, modifier = Modifier.padding(top = 2.dp))
                 }
             }
             if (g.state != GameState.POST) g.mainChannel()?.let { Text(it, style = MaterialTheme.typography.labelSmall, color = Dez.Faint, maxLines = 1, overflow = TextOverflow.Ellipsis) }

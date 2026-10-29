@@ -377,7 +377,7 @@ private fun WideGame(d: GameDetail, onBack: () -> Unit, onTeam: (League, String)
                 "Gamecast" -> if (showArena) com.dez.sports.ui.game.arena.ArenaCast(d, onCharts = { arena = false }) else Column {
                     if (!arena) Text("▶ ARENA VIEW", style = MaterialTheme.typography.labelMedium, color = Dez.Text,
                         modifier = Modifier.padding(start = 24.dp, top = 4.dp).clip(RoundedCornerShape(50)).background(Dez.Card2).clickable { arena = true }.padding(horizontal = 12.dp, vertical = 5.dp))
-                    TwoColumns({ item(key = "tracker") { Tracker(d) }; recentPlays(d) }, { item(key = "mom") { MomentumCard(d) }; if (d.winProb.size > 2) item(key = "wp") { CardBox { WinProbabilityChart(d) } } }) }
+                    TwoColumns({ item(key = "tracker") { Tracker(d) }; recentPlays(d) }, { item(key = "upset") { rememberUpset(d.game)?.let { UpsetCard(it, d) } }; item(key = "mom") { MomentumCard(d) }; if (d.winProb.size > 2) item(key = "wp") { CardBox { WinProbabilityChart(d) } } }) }
                 "Overview" -> TwoColumns({ statsLeft(d) }, { statsRight(d) })
                 "Preview" -> TwoColumns({ previewContent(d) }, { infoContent(d) })
                 else -> TwoColumns({ infoContent(d, includeRecap = true, includeExtras = false) }, { extrasContent(d) })
@@ -418,6 +418,7 @@ private fun LazyListScope.boxContent(d: GameDetail, team: Int, onTeam: (Int) -> 
 }
 
 private fun LazyListScope.statsContent(d: GameDetail) {
+    item(key = "upset") { rememberUpset(d.game)?.let { UpsetCard(it, d) } }
     if (d.game.state == GameState.POST) item(key = "dez") { DezScoreCard(d.game) }
     if (d.winProb.size > 2) item(key = "wp") { CardBox { WinProbabilityChart(d) } }
     if (d.shots.size > 4) item(key = "shots") { CardBox { Column { Text("SHOT CHART", style = MaterialTheme.typography.labelMedium, color = Dez.Sub); Spacer(Modifier.height(8.dp)); ShotChart(d) } } }
@@ -427,6 +428,7 @@ private fun LazyListScope.statsContent(d: GameDetail) {
 }
 
 private fun LazyListScope.castContent(d: GameDetail) {
+    item(key = "upset") { rememberUpset(d.game)?.let { UpsetCard(it, d) } }
     item(key = "tracker") { Tracker(d) }
     item(key = "mom") { MomentumCard(d) }
     recentPlays(d)
@@ -441,6 +443,7 @@ private fun LazyListScope.recentPlays(d: GameDetail) {
 
 private fun LazyListScope.statsLeft(d: GameDetail) {
     item(key = "ls") { Linescore(d.game) }
+    item(key = "upset") { rememberUpset(d.game)?.let { UpsetCard(it, d) } }
     if (d.game.state == GameState.POST) item(key = "dez") { DezScoreCard(d.game) }
     if (d.winProb.size > 2) item(key = "wp") { CardBox { WinProbabilityChart(d) } }
     if (d.shots.size > 4) item(key = "shots") { CardBox { Column { Text("SHOT CHART", style = MaterialTheme.typography.labelMedium, color = Dez.Sub); Spacer(Modifier.height(8.dp)); ShotChart(d) } } }

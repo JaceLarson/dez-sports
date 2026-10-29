@@ -30,12 +30,22 @@ internal class FootballScene(
 ) : Scene(play, side) {
     enum class Kind { RUN, PASS, INCOMPLETE, SACK, INTERCEPTION, PUNT, KICKOFF, FIELD_GOAL, EXTRA_POINT, PENALTY }
     override val star: Who? get() = when (kind) { Kind.SACK, Kind.INTERCEPTION -> defender ?: passer; Kind.PASS -> carrier ?: passer; Kind.INCOMPLETE -> passer; else -> carrier ?: passer }
-    override val durationMs get() = if (points >= 6) 3200 else if (kind == Kind.PENALTY) 1400 else 2500
+    override val durationMs get() = if (points >= 6) 4200 else if (kind == Kind.PENALTY) 2000 else 3300
 }
 
 internal fun footballScenes(d: GameDetail, r: Roster): List<Scene> {
     val home = d.game.home.team.id
-    return d.drives.flatMap { dr -> dr.plays.map { dr to it } }.mapNotNull { (dr, p) ->
+    val all = d.drives.flatMap { dr -> dr.plays.map { dr to it } }
+    // Points on each play from the running score: a touchdown play also carries its extra point or two-point try.
+    val scored = HashMap<Play, Int>()
+    var last = 0 to 0
+    for ((_, p) in all) {
+        val a = p.awayScore ?: continue; val h = p.homeScore ?: continue
+        val delta = (a - last.first) + (h - last.second)
+        if (delta > 0) scored[p] = delta
+        last = a to h
+    }
+    return all.mapNotNull { (dr, p) ->
         val f = p.football ?: return@mapNotNull null
         val s0 = f.startYtg ?: return@mapNotNull null
         val s1 = f.endYtg ?: s0
@@ -45,11 +55,14 @@ internal fun footballScenes(d: GameDetail, r: Roster): List<Scene> {
         fun x(ytg: Int) = if (offHome) ytg.toFloat() else 100f - ytg
         val dir = if (offHome) -1 else 1
         val type = (p.type ?: "").lowercase(); val text = p.text
+        // ESPN folds the extra point into the touchdown's text ("…TOUCHDOWN. J.Bates extra point is GOOD"), and a
+        // touchdown wiped out by a penalty still says TOUCHDOWN, so only a scoring play counts.
+        val td = p.scoring && (type.contains("touchdown") || text.contains("touchdown", true) && !type.contains("field goal") && !type.contains("extra point"))
         val kind = when {
             type.contains("kickoff") -> FootballScene.Kind.KICKOFF
             type.contains("punt") -> FootballScene.Kind.PUNT
-            type.contains("field goal") -> FootballScene.Kind.FIELD_GOAL
-            type.contains("extra point") || text.contains("extra point", true) -> FootballScene.Kind.EXTRA_POINT
+            type.contains("field goal") && !td -> FootballScene.Kind.FIELD_GOAL
+            type.contains("extra point") || !td && text.contains("extra point", true) -> FootballScene.Kind.EXTRA_POINT
             type.contains("interception") -> FootballScene.Kind.INTERCEPTION
             type.contains("sack") -> FootballScene.Kind.SACK
             type.contains("incompletion") || text.contains("incomplete", true) -> FootballScene.Kind.INCOMPLETE
@@ -70,15 +83,20 @@ internal fun footballScenes(d: GameDetail, r: Roster): List<Scene> {
         val defense = (defNamed + r.table(1 - side, "Defens", "Tackles")).distinctBy { it.id }.take(11).let { it + List(11 - it.size) { null } }
         val yards = abs(x(s1) - x(s0)).toInt()
         val gain = if ((x(s1) - x(s0)) * dir >= 0) yards else -yards
-        val td = text.contains("touchdown", true) || (p.scoring && (type.contains("touchdown") || type.contains("rush") || type.contains("pass")))
         val good = !text.contains("no good", true) && !text.contains("missed", true) && !text.contains("blocked", true)
-        val points = when {
+        val points = if (!p.scoring) 0 else scored[p] ?: when {
             td -> 6
             kind == FootballScene.Kind.FIELD_GOAL && good -> 3
             kind == FootballScene.Kind.EXTRA_POINT && good -> 1
             else -> 0
         }
-        val headline = when (kind) {
+        val headline = if (!td && p.scoring && text.contains("safety", true)) "SAFETY" else if (td) when (kind) {
+            FootballScene.Kind.PASS -> "TOUCHDOWN PASS"
+            FootballScene.Kind.RUN -> "TOUCHDOWN RUN"
+            FootballScene.Kind.INTERCEPTION -> "PICK-SIX"
+            FootballScene.Kind.PUNT, FootballScene.Kind.KICKOFF -> "RETURN TD"
+            else -> "TOUCHDOWN"
+        } else when (kind) {
             FootballScene.Kind.RUN -> "RUN ${signed(gain)}"
             FootballScene.Kind.PASS -> "PASS ${signed(gain)}"
             FootballScene.Kind.INCOMPLETE -> "INCOMPLETE"
@@ -101,7 +119,10 @@ internal fun footballScenes(d: GameDetail, r: Roster): List<Scene> {
             gain >= 20 -> "BIG PLAY!"
             else -> null
         }
-        val kicker = if (kind in setOf(FootballScene.Kind.PUNT, FootballScene.Kind.KICKOFF, FootballScene.Kind.FIELD_GOAL, FootballScene.Kind.EXTRA_POINT)) offNamed.firstOrNull() else null
+        // The kicker is the name right before the kick ("J.Bates 22 yard field goal"), not linemen reporting in earlier.
+        val kickAt = listOf("field goal", "extra point", "punts", "kicks").map { text.indexOf(it, ignoreCase = true) }.filter { it >= 0 }.minOrNull()
+        val kicker = if (kind in setOf(FootballScene.Kind.PUNT, FootballScene.Kind.KICKOFF, FootballScene.Kind.FIELD_GOAL, FootballScene.Kind.EXTRA_POINT))
+            named.let { o -> kickAt?.let { k -> o.lastOrNull { it.first < k } } ?: o.firstOrNull() }?.second else null
         FootballScene(p, side, kind, x(s0), x(s1), dir, passer ?: qb, kicker ?: carrier ?: rb.takeIf { kind == FootballScene.Kind.RUN }, defNamed.firstOrNull(), offense, defense,
             f.downText, points, good, headline, pop)
     }

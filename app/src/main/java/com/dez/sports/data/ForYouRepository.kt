@@ -8,7 +8,7 @@ import kotlinx.coroutines.coroutineScope
 import java.time.LocalDate
 
 data class FavoriteCard(val league: League, val team: Team, val record: String?, val standing: String?, val featured: Game?, val featuredLabel: String, val next: Game?, val form: List<String>)
-data class ForYou(val favorites: List<FavoriteCard>, val live: List<Game>, val upNext: List<Game>, val golf: List<GolfEvent>, val tv: TvTonight = TvTonight(emptyList(), emptyList()))
+data class ForYou(val favorites: List<FavoriteCard>, val live: List<Game>, val upNext: List<Game>, val golf: List<GolfEvent>, val tv: TvTonight = TvTonight(emptyList(), emptyList()), val upsets: List<Game> = emptyList())
 
 /** Builds the "For You" feed: each favourite team's live/today/last/next game plus what's live everywhere. Shared by the app and the widget. */
 object ForYouRepository {
@@ -47,10 +47,13 @@ object ForYouRepository {
         val all = boards.values.filterNotNull().flatMap { it.games }
         val tv = BigGames.pick(all, isFavorite = { g -> favs.any { it.league == g.league && g.involves(it.teamId) } })
         val featured = tv.big.map { it.game.id }.toSet()
-        val live = all.filter { it.state == GameState.LIVE && it.id !in featured }.sortedBy { it.league.ordinal }
+        // Only games in their final stretch get their line looked up, so this stays a handful of small requests.
+        val upsets = all.filter { Upsets.late(it) }.map { g -> async { g.takeIf { runCatching { Upsets.of(g) }.getOrNull() != null } } }.awaitAll().filterNotNull()
+        val upsetIds = upsets.map { it.id }.toSet()
+        val live = all.filter { it.state == GameState.LIVE && it.id !in featured && it.id !in upsetIds }.sortedBy { it.league.ordinal }
         val today = LocalDate.now()
         val upNext = all.filter { it.state == GameState.PRE && it.id !in featured && localDate(it.dateIso) == today && (it.league !in setOf(League.CFB, League.CBB) || it.home.rank != null || it.away.rank != null) }
             .sortedBy { it.dateIso }.take(12)
-        ForYou(cards, live, upNext, boards[League.PGA]?.golf ?: emptyList(), tv)
+        ForYou(cards, live, upNext, boards[League.PGA]?.golf ?: emptyList(), tv, upsets)
     }
 }

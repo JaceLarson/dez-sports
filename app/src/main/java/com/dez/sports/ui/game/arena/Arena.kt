@@ -90,9 +90,11 @@ internal class Roster(d: GameDetail) {
 
     /** NFL play text names players like "J.Goff" and "A.St. Brown"; returns (index in text, player), in reading order. */
     fun named(text: String): List<Pair<Int, Who>> = everyone.flatten().mapNotNull { w ->
-        val key = w.name.replaceFirst(". ", ".")
-        val i = text.indexOf(key)
-        if (i >= 0 && key.length > 3) i to w else null
+        // Box scores may give "J. Bates" or "Jake Bates"; play text says "J.Bates".
+        val parts = w.name.trim().split(" ", limit = 2)
+        val initial = if (parts.size == 2 && parts[0].isNotEmpty()) "${parts[0].first()}.${parts[1]}" else null
+        listOfNotNull(w.name.replaceFirst(". ", "."), initial).filter { it.length > 3 }
+            .firstNotNullOfOrNull { key -> text.indexOf(key).takeIf { it >= 0 } }?.let { it to w }
     }.sortedBy { it.first }.distinctBy { it.first }
 }
 
@@ -256,7 +258,8 @@ fun ArenaCast(d: GameDetail, modifier: Modifier = Modifier, onCharts: () -> Unit
     LaunchedEffect(i, playing, scenes.size, fast) {
         if (!playing || i >= scenes.lastIndex) return@LaunchedEffect
         snapshotFlow { t.value }.first { it >= 1f }
-        delay(if (fast) 300 else 750)
+        // Time to read the play card before the next snap; longer after a score.
+        delay(if (fast) 300L else if (sc.points > 0) 2600L else 1600L)
         idx = i + 1
     }
     val clock by rememberInfiniteTransition(label = "clock").animateFloat(0f, 3600f, infiniteRepeatable(tween(3_600_000, easing = LinearEasing)), label = "c")

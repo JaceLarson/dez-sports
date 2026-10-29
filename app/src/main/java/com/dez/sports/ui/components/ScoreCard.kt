@@ -74,11 +74,13 @@ fun ScoreCard(game: Game, onClick: () -> Unit, modifier: Modifier = Modifier, hi
     val scale by animateFloatAsState(if (pressed) 0.97f else 1f, spring(stiffness = 600f), label = "press")
     val flash = rememberFlash("${game.away.score}-${game.home.score}")
     val live = game.state == GameState.LIVE
+    val upset = rememberUpset(game)
 
     Column(
         modifier
             .graphicsLayer { scaleX = scale; scaleY = scale }
             .clip(RoundedCornerShape(20.dp))
+            .upsetGlow(upset, 20.dp)
             .background(Brush.horizontalGradient(0f to awayC.darken(0.25f), 0.5f to Color(0xFF111113), 1f to homeC.darken(0.25f)))
             .background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(alpha = .35f))))
             .then(if (highlight || flash > 0f) Modifier.border(1.5.dp, Color.White.copy(alpha = if (flash > 0f) flash * .9f else .12f), RoundedCornerShape(20.dp)) else Modifier)
@@ -86,6 +88,7 @@ fun ScoreCard(game: Game, onClick: () -> Unit, modifier: Modifier = Modifier, hi
             .animateContentSize(spring(stiffness = 400f))
             .padding(horizontal = 12.dp, vertical = 9.dp),
     ) {
+        upset?.let { UpsetBanner(it, Modifier.padding(bottom = 6.dp)) }
         val note = game.note ?: game.seriesSummary
         if (note != null) {
             Text(note.uppercase(), style = MaterialTheme.typography.labelSmall, color = Color.White.copy(alpha = .7f),

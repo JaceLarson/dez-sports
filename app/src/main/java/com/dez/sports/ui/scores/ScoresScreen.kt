@@ -195,6 +195,10 @@ private fun ForYouFeed(feed: ForYou?, onGame: (Game) -> Unit, onTeam: (League, S
     val compact = com.dez.sports.data.Favorites.compactScores.collectAsState().value ?: com.dez.sports.data.Favorites.compact()
     if (compact) { CompactForYou(feed, onGame, onTeam, onGolf); return }
     LazyVerticalGrid(gridCells, contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(12.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        if (feed.upsets.isNotEmpty()) {
+            item(span = { GridItemSpan(maxLineSpan) }, key = "upsets") { SectionTitle("🚨 Upset Alert") }
+            items(feed.upsets, key = { "upset-${it.league}-${it.id}" }) { g -> LeagueTagged(g) { ScoreCard(g, onClick = { onGame(g) }) } }
+        }
         item(span = { GridItemSpan(maxLineSpan) }, key = "my") { SectionTitle("My Teams") }
         items(feed.favorites, key = { "fav-${it.league}-${it.team.id}" }) { c -> FavoriteTeamCard(c, onGame, onTeam, Modifier.animateItem()) }
         if (feed.tv.big.isNotEmpty()) {
@@ -229,6 +233,10 @@ private fun ForYouFeed(feed: ForYou?, onGame: (Game) -> Unit, onTeam: (League, S
 private fun CompactForYou(feed: ForYou, onGame: (Game) -> Unit, onTeam: (League, String) -> Unit, onGolf: (GolfEvent) -> Unit) {
     LazyVerticalGrid(GridCells.Adaptive(minSize = 228.dp), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 24.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        if (feed.upsets.isNotEmpty()) {
+            item(span = { GridItemSpan(maxLineSpan) }, key = "upsets") { SectionTitle("🚨 Upset Alert") }
+            items(feed.upsets, key = { "cupset-${it.league}-${it.id}" }) { g -> CompactScore(g, fav = false, onClick = { onGame(g) }) }
+        }
         item(span = { GridItemSpan(maxLineSpan) }, key = "my") { SectionTitle("My Teams") }
         items(feed.favorites, key = { "cfav-${it.league}-${it.team.id}" }) { c ->
             val g = c.featured
