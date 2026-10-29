@@ -560,6 +560,7 @@ private fun LazyListScope.extrasContent(d: GameDetail) {
 }
 
 private fun LazyListScope.previewContent(d: GameDetail) {
+    if (d.game.state == GameState.PRE) item(key = "watch") { WatchScoreCard(d.game) }
     d.pregameWinPct?.let { (a, h) -> item(key = "pred") { MatchupPredictor(d.game, a, h) } }
     if (d.game.league == League.NHL) item(key = "lines") { LinesCard(d.game) }
     if (d.leaders.isNotEmpty()) item(key = "leaders") { LeadersCard(d, title = "SEASON LEADERS") }

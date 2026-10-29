@@ -161,6 +161,7 @@ private fun Center(game: Game, modifier: Modifier) {
             GameState.PRE -> {
                 Text(if (game.isTbd) "TBD" else localTime(game.dateIso), style = MaterialTheme.typography.titleSmall.merge(TabularNums), color = Dez.Text, maxLines = 1)
                 TvLine(game, .65f)
+                WatchBadge(game, Modifier.padding(top = 3.dp))
             }
             GameState.POST -> {
                 Text(game.statusShort.replace("Final/", "F/").let { if (it.startsWith("Final")) it.replace("Final", "FINAL") else it },

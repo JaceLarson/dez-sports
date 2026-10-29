@@ -114,6 +114,22 @@ object Upsets {
         }
     }
 
+    fun remember(gameId: String, line: Line) { if (gameId.isNotEmpty()) lines[gameId] = line }
+    fun cached(gameId: String): Line? = lines[gameId]
+
+    /** The scoreboard's pregame odds block: favourite flags, the home spread and DraftKings moneylines. */
+    fun lineFromScoreboard(o: kotlinx.serialization.json.JsonElement): Line? {
+        val favHome = when {
+            o.obj("homeTeamOdds")?.str("favorite") == "true" -> true
+            o.obj("awayTeamOdds")?.str("favorite") == "true" -> false
+            else -> return null
+        }
+        fun ml(side: String) = o.obj("moneyline")?.obj(side)?.let { s -> american(s.obj("close")?.str("odds") ?: s.obj("open")?.str("odds")) }?.roundToInt()
+        val homeMl = ml("home"); val awayMl = ml("away")
+        val spread = o.str("spread")?.toDoubleOrNull()?.let { abs(it) }?.takeIf { it > 0 }
+        return Line(favHome, spread, if (favHome) homeMl else awayMl, (if (favHome) awayMl else homeMl)?.takeIf { it > 0 })
+    }
+
     /** Closing line from ESPN's odds feed (a few KB). Finished games are cached on disk for good. */
     suspend fun line(g: Game): Line? {
         lines[g.id]?.let { return it }

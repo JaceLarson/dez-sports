@@ -162,6 +162,7 @@ object EspnApi {
             Channel(name, national = g.obj("market")?.str("type") == "National", streaming = g.obj("type")?.str("shortName") == "Streaming")
         }.distinctBy { it.name }
         val odds = comp.arr("odds").firstOrNull()?.let { o ->
+            if (state == GameState.PRE) Upsets.lineFromScoreboard(o)?.let { Upsets.remember(e.str("id") ?: "", it) }
             listOfNotNull(o.str("details"), o.str("overUnder")?.let { "O/U $it" }).joinToString(" · ").ifEmpty { null }
         }
         // Leaders live per competitor (NBA/NHL/MLB) or per competition (NFL); collect both, tagged by team.

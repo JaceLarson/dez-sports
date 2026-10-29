@@ -63,7 +63,10 @@ fun CompactScore(g: Game, fav: Boolean, onClick: () -> Unit, modifier: Modifier 
                     if (upset != null) Text("UPSET ALERT", fontSize = 9.sp, fontWeight = FontWeight.Black, color = UpsetRed, maxLines = 1)
                     Row(verticalAlignment = Alignment.CenterVertically) { LiveDot(3.dp); Text(liveLabel(g), style = MaterialTheme.typography.labelMedium.merge(TabularNums), color = Dez.Live, maxLines = 1, overflow = TextOverflow.Ellipsis) }
                 }
-                GameState.PRE -> Text(if (g.isTbd) "TBD" else localTime(g.dateIso), style = MaterialTheme.typography.labelLarge.merge(TabularNums), color = Dez.Text, maxLines = 1)
+                GameState.PRE -> {
+                    Text(if (g.isTbd) "TBD" else localTime(g.dateIso), style = MaterialTheme.typography.labelLarge.merge(TabularNums), color = Dez.Text, maxLines = 1)
+                    WatchBadge(g, Modifier.padding(vertical = 2.dp), compact = true)
+                }
                 GameState.POST -> Column(horizontalAlignment = Alignment.End) {
                     Text(g.statusShort.replace("Final/", "F/").let { if (it.startsWith("Final")) "Final" + it.removePrefix("Final") else it },
                     style = MaterialTheme.typography.labelMedium, color = Dez.Sub, maxLines = 1, textAlign = TextAlign.End)
