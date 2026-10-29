@@ -98,7 +98,7 @@ object WatchScores {
         parts += DezPart("Playoff picture", stakes.second, (stakes.first * 20).roundToInt(), 20)
 
         // 5. National TV.
-        val national = g.channels.firstOrNull { Networks.isMarquee(it) } ?: g.channels.firstOrNull { it.national }
+        val national = g.channels.firstOrNull { Networks.isMarquee(it) } ?: g.channels.firstOrNull { it.national && !Networks.isStreamingOnly(it) }
         parts += DezPart("National TV", national?.name ?: "Local or streaming only", when { national == null -> 0; Networks.isMarquee(national) -> 10; else -> 6 }, 10)
 
         val score = parts.sumOf { it.points }.coerceIn(0, 100)

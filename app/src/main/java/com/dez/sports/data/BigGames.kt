@@ -37,6 +37,8 @@ object Networks {
     /** Catch-all subscription services that carry hundreds of games – not "where everyone's watching". */
     private val notMarquee = setOf("espn+", "nba league pass", "nhl power play", "mlb.tv", "nfl+", "espn3", "accnx", "secn+", "b1g+", "eradm", "espn deportes radio")
     fun isMarquee(c: Channel) = c.national && c.name.lowercase() !in notMarquee
+    /** ESPN+, League Pass, MLB.TV…: national, but not TV. */
+    fun isStreamingOnly(c: Channel) = c.streaming || c.name.lowercase() in notMarquee
 }
 
 data class BigGame(val game: Game, val hype: Int, val tags: List<String>, val channel: Channel?, val mustWatch: Boolean)
