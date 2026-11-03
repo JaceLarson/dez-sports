@@ -23,6 +23,8 @@ data class Side(
     val homeAway: String,
     val linescores: List<String>,
     val timeouts: Int? = null,
+    /** College only: matches [com.dez.sports.data.Conference.id]. */
+    val conferenceId: String? = null,
 )
 
 data class FootballSituation(

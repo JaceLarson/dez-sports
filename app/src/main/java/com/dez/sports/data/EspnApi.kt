@@ -140,6 +140,7 @@ object EspnApi {
             winner = c.bool("winner"),
             homeAway = c.str("homeAway") ?: "",
             linescores = c.arr("linescores").map { it.str("displayValue") ?: it.str("value")?.substringBefore(".0") ?: "" },
+            conferenceId = c.obj("team")?.str("conferenceId"),
         )
     }
 

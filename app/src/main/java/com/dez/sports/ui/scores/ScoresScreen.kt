@@ -29,6 +29,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.dez.sports.data.Conference
+import com.dez.sports.data.Conferences
 import com.dez.sports.data.FavoriteCard
 import com.dez.sports.data.ForYou
 import com.dez.sports.model.*
@@ -39,6 +41,8 @@ import com.dez.sports.ui.theme.lighten
 import com.dez.sports.ui.theme.teamColor
 import java.time.LocalDate
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import androidx.compose.material.icons.filled.Widgets
 import java.time.format.DateTimeFormatter
 
@@ -57,13 +61,17 @@ fun ScoresScreen(
         Header(s)
         LeagueChips(s.league, vm::selectLeague)
         val league = s.league
+        val filters by com.dez.sports.data.Favorites.scoreFilter.collectAsState()
+        val filter = league?.takeIf { Conferences.filterable(it) }?.let { filters[it] } ?: Conferences.ALL
         if (league != null && league != League.PGA) {
             if (league.weekly) WeekStrip(s.board, s.week, vm::selectWeek) else DateStrip(s.date, vm::selectDate)
             val compact by com.dez.sports.data.Favorites.compactScores.collectAsState()
-            val games = s.board?.games.orEmpty()
+            val all = s.board?.games.orEmpty()
+            if (Conferences.filterable(league) && all.isNotEmpty()) ConferenceChips(league, all, filter)
+            val games = all.filter { Conferences.matches(it, filter) }
             val live = games.count { it.state == GameState.LIVE }
             ViewToggle(compact ?: com.dez.sports.data.Favorites.compact(), com.dez.sports.data.Favorites::setCompact,
-                if (games.isEmpty()) "" else "${games.size} games" + if (live > 0) " · $live live" else "")
+                if (all.isEmpty()) "" else (if (games.size < all.size) "${games.size} of ${all.size} games" else "${all.size} games") + if (live > 0) " · $live live" else "")
         }
         val feed = s.feed
         if (league == null && feed != null) {
@@ -78,7 +86,7 @@ fun ScoresScreen(
                 when {
                     loading -> Column(Modifier.fillMaxSize().padding(top = 8.dp)) { SkeletonCards() }
                     lg == null -> ForYouFeed(s.feed, onGame, onTeam, onGolf)
-                    else -> LeagueBoard(lg, s, onGame, onGolf)
+                    else -> LeagueBoard(lg, s, filter, onGame, onGolf)
                 }
             }
         }
@@ -157,10 +165,39 @@ private fun WeekStrip(board: Scoreboard?, selected: WeekOption?, onSelect: (Week
     }
 }
 
+/** All · Top 25 · your conference first, then every conference playing on this slate, with game counts. */
+@Composable
+private fun ConferenceChips(league: League, games: List<Game>, selected: String) {
+    val confs by produceState(emptyList<Conference>(), league) {
+        value = withContext(Dispatchers.Default) { runCatching { Conferences.of(league) }.getOrDefault(emptyList()) }
+    }
+    val favs by com.dez.sports.data.Favorites.teams.collectAsState()
+    val chips = remember(confs, games, favs, selected) {
+        val mine = confs.filter { c -> favs.any { it.league == league && it.teamId in c.teamIds } }.map { it.id }.toSet()
+        val count = confs.associate { c -> c.id to games.count { it.away.conferenceId == c.id || it.home.conferenceId == c.id } }
+        listOf(Triple(Conferences.ALL, "All", games.size), Triple(Conferences.TOP25, "Top 25", games.count { it.away.rank != null || it.home.rank != null })) +
+            confs.filter { (count[it.id] ?: 0) > 0 || it.id == selected }.sortedWith(compareBy({ it.id !in mine }, { it.short }))
+                .map { Triple(it.id, it.short, count[it.id] ?: 0) }
+    }
+    val state = rememberLazyListState()
+    LaunchedEffect(league, chips.size > 2) { chips.indexOfFirst { it.first == selected }.takeIf { it > 1 }?.let { state.scrollToItem(it - 1) } }
+    LazyRow(state = state, contentPadding = PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(bottom = 6.dp)) {
+        items(chips, key = { it.first }) { (id, label, n) ->
+            val sel = id == selected
+            val bg by animateColorAsState(if (sel) league.accent else Dez.Card, tween(200), label = "conf")
+            Row(Modifier.clip(RoundedCornerShape(50)).background(bg).clickable { com.dez.sports.data.Favorites.setScoreFilter(league, id) }.padding(horizontal = 12.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically) {
+                Text(label, style = MaterialTheme.typography.labelMedium, color = if (sel) Color.White else Dez.Text, maxLines = 1)
+                Text(" $n", style = MaterialTheme.typography.labelSmall.merge(TabularNums), color = if (sel) Color.White.copy(alpha = .75f) else Dez.Faint)
+            }
+        }
+    }
+}
+
 private val gridCells = GridCells.Adaptive(minSize = 340.dp)
 
 @Composable
-private fun LeagueBoard(league: League, s: ScoresState, onGame: (Game) -> Unit, onGolf: (GolfEvent) -> Unit) {
+private fun LeagueBoard(league: League, s: ScoresState, filter: String, onGame: (Game) -> Unit, onGolf: (GolfEvent) -> Unit) {
     val b = s.board
     if (s.error != null && b == null) { EmptyState("Couldn't reach ESPN", s.error); return }
     if (b == null) return
@@ -172,7 +209,9 @@ private fun LeagueBoard(league: League, s: ScoresState, onGame: (Game) -> Unit, 
         return
     }
     if (b.games.isEmpty()) { EmptyState("No games", "Try another day — swipe the date strip."); return }
-    val groups = b.games.sortedWith(compareBy<Game>({ when (it.state) { GameState.LIVE -> 0; GameState.PRE -> 1; GameState.POST -> 2 } }, { it.dateIso }))
+    val shown = b.games.filter { Conferences.matches(it, filter) }
+    if (shown.isEmpty()) { EmptyState(if (filter == Conferences.TOP25) "No Top 25 games" else "No games from this conference", "Tap All to see every game."); return }
+    val groups = shown.sortedWith(compareBy<Game>({ when (it.state) { GameState.LIVE -> 0; GameState.PRE -> 1; GameState.POST -> 2 } }, { it.dateIso }))
         .groupBy { if (league.weekly) localDay(it.dateIso) else when (it.state) { GameState.LIVE -> "Live"; GameState.PRE -> "Upcoming"; GameState.POST -> "Final" } }
     val compact = com.dez.sports.data.Favorites.compactScores.collectAsState().value ?: com.dez.sports.data.Favorites.compact()
     LazyVerticalGrid(if (compact) GridCells.Adaptive(minSize = 228.dp) else gridCells, contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 24.dp),

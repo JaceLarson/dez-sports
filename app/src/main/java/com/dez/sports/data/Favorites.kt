@@ -22,7 +22,10 @@ object Favorites {
 
     fun init(context: Context) {
         ctx = context.applicationContext
-        prefs()?.let { _showDez.value = it.getBoolean("showDez", true); _showWatch.value = it.getBoolean("showWatch", true) }
+        prefs()?.let { p ->
+            _showDez.value = p.getBoolean("showDez", true); _showWatch.value = p.getBoolean("showWatch", true)
+            _scoreFilter.value = League.entries.mapNotNull { l -> p.getString("filter.${l.name}", null)?.let { l to it } }.toMap()
+        }
         val saved = prefs()?.getString("favorites", null) ?: return
         _teams.value = saved.split(",").filter { it.contains(":") }.mapNotNull {
             val (l, id) = it.split(":")
@@ -69,4 +72,10 @@ object Favorites {
     val showWatch: StateFlow<Boolean> = _showWatch
     fun setShowDez(v: Boolean) { _showDez.value = v; prefs()?.edit()?.putBoolean("showDez", v)?.apply() }
     fun setShowWatch(v: Boolean) { _showWatch.value = v; prefs()?.edit()?.putBoolean("showWatch", v)?.apply() }
+
+    /** Scores filter per college league: [Conferences.ALL], [Conferences.TOP25] or a conference id. */
+    private val _scoreFilter = MutableStateFlow<Map<League, String>>(emptyMap())
+    val scoreFilter: StateFlow<Map<League, String>> = _scoreFilter
+    fun scoreFilter(l: League): String = _scoreFilter.value[l] ?: Conferences.ALL
+    fun setScoreFilter(l: League, v: String) { _scoreFilter.value += l to v; prefs()?.edit()?.putString("filter.${l.name}", v)?.apply() }
 }
